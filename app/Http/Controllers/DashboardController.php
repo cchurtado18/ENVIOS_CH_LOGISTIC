@@ -30,9 +30,9 @@ class DashboardController extends Controller
             ->limit(20)
             ->get();
             
-        // Get pending trackings
+        // Get pending trackings (status: waiting = not verified yet)
         $pendingTrackings = PendingTracking::where('user_id', $user->id)
-            ->where('is_verified', false)
+            ->where('status', 'waiting')
             ->orderBy('created_at', 'desc')
             ->get();
 
