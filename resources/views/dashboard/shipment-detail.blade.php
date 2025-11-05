@@ -230,29 +230,45 @@
                         </div>
                     </div>
                     
-                        @if($shipment->pickup_date)
+                        @php
+                            $pickupDate = null;
+                            if ($shipment->pickup_date) {
+                                try {
+                                    if ($shipment->pickup_date instanceof \Carbon\Carbon) {
+                                        $pickupDate = $shipment->pickup_date->format('d/m/Y H:i');
+                                    } else {
+                                        $pickupDate = \Carbon\Carbon::parse($shipment->pickup_date)->format('d/m/Y H:i');
+                                    }
+                                } catch (\Exception $e) {
+                                    $pickupDate = null;
+                                }
+                            }
+                            
+                            $deliveryDate = null;
+                            if ($shipment->delivery_date) {
+                                try {
+                                    if ($shipment->delivery_date instanceof \Carbon\Carbon) {
+                                        $deliveryDate = $shipment->delivery_date->format('d/m/Y H:i');
+                                    } else {
+                                        $deliveryDate = \Carbon\Carbon::parse($shipment->delivery_date)->format('d/m/Y H:i');
+                                    }
+                                } catch (\Exception $e) {
+                                    $deliveryDate = null;
+                                }
+                            }
+                        @endphp
+                        
+                        @if($pickupDate)
                             <div class="info-card">
                                 <div class="info-label">Fecha de Registro</div>
-                                <div class="info-value">
-                                    @if($shipment->pickup_date instanceof \Carbon\Carbon)
-                                        {{ $shipment->pickup_date->format('d/m/Y H:i') }}
-                                    @else
-                                        {{ \Carbon\Carbon::parse($shipment->pickup_date)->format('d/m/Y H:i') }}
-                                    @endif
-                                </div>
+                                <div class="info-value">{{ $pickupDate }}</div>
                             </div>
                         @endif
                         
-                        @if($shipment->delivery_date)
+                        @if($deliveryDate)
                             <div class="info-card">
                                 <div class="info-label">Fecha de Entrega</div>
-                                <div class="info-value">
-                                    @if($shipment->delivery_date instanceof \Carbon\Carbon)
-                                        {{ $shipment->delivery_date->format('d/m/Y H:i') }}
-                                    @else
-                                        {{ \Carbon\Carbon::parse($shipment->delivery_date)->format('d/m/Y H:i') }}
-                                    @endif
-                                </div>
+                                <div class="info-value">{{ $deliveryDate }}</div>
                             </div>
                         @endif
                     
