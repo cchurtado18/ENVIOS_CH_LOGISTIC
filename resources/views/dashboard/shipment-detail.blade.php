@@ -222,13 +222,6 @@
                         </div>
                     </div>
                     
-                    @if($shipment->weight)
-                        <div class="info-card">
-                            <div class="info-label">Peso</div>
-                            <div class="info-value">{{ number_format($shipment->weight, 2) }} {{ $shipment->weight_unit ?? 'lbs' }}</div>
-                        </div>
-                    @endif
-                    
                     @if($shipment->pickup_date)
                         <div class="info-card">
                             <div class="info-label">Fecha de Registro</div>
