@@ -32,12 +32,18 @@ class LoginController extends Controller
         if (Auth::attempt($request->only('email', 'password'))) {
             $request->session()->regenerate();
             
-            // Create a token for API access and store it
+            // Create a token for API access and store it (if Sanctum is available)
             $user = Auth::user();
-            $token = $user->createToken('web_session')->plainTextToken;
+            try {
+                if (method_exists($user, 'createToken')) {
+                    $token = $user->createToken('web_session')->plainTextToken;
+                    session(['auth_token' => $token]);
+                }
+            } catch (\Exception $e) {
+                // If Sanctum is not available, continue without token
+            }
             
-            // Store token and user in session
-            session(['auth_token' => $token]);
+            // Store user in session
             session(['user' => $user->only('id', 'name', 'email')]);
             
             return redirect()->route('dashboard');
@@ -53,10 +59,16 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
-        // Revoke all user tokens
+        // Revoke all user tokens (if Sanctum is available)
         if (Auth::check()) {
             $user = Auth::user();
-            $user->tokens()->delete();
+            try {
+                if (method_exists($user, 'tokens')) {
+                    $user->tokens()->delete();
+                }
+            } catch (\Exception $e) {
+                // If Sanctum is not available, continue without revoking tokens
+            }
         }
         
         // Destroy the session
