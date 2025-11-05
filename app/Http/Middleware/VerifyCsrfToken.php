@@ -15,20 +15,4 @@ class VerifyCsrfToken extends Middleware
         // Add routes that should be excluded if needed
         // 'api/*',
     ];
-
-    /**
-     * Determine if the session and input CSRF tokens match.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return bool
-     */
-    protected function tokensMatch($request)
-    {
-        // If session driver is not working, try to regenerate session
-        if (!$request->session()->has('_token')) {
-            $request->session()->regenerateToken();
-        }
-
-        return parent::tokensMatch($request);
-    }
 }
