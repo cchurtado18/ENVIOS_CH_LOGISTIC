@@ -195,8 +195,16 @@
                 @php
                     // Determine status display
                     $statusValue = $shipment->status ?? 'pending';
+                    // Get tracking events safely
+                    $trackingEvents = $shipment->tracking_events ?? [];
+                    if (is_string($trackingEvents)) {
+                        $trackingEvents = json_decode($trackingEvents, true) ?? [];
+                    }
+                    if (!is_array($trackingEvents)) {
+                        $trackingEvents = [];
+                    }
                     // If status is pending but has tracking events, show as in_transit
-                    if ($statusValue === 'pending' && $shipment->tracking_events && count($shipment->tracking_events) > 0) {
+                    if ($statusValue === 'pending' && count($trackingEvents) > 0) {
                         $statusValue = 'in_transit';
                     }
                     
@@ -251,12 +259,25 @@
                     @endif
                 </div>
                 
-                @if($shipment->tracking_events && count($shipment->tracking_events) > 0)
+                @php
+                    $trackingEvents = $shipment->tracking_events ?? [];
+                    if (is_string($trackingEvents)) {
+                        $trackingEvents = json_decode($trackingEvents, true) ?? [];
+                    }
+                    if (!is_array($trackingEvents)) {
+                        $trackingEvents = [];
+                    }
+                @endphp
+                
+                @if(count($trackingEvents) > 0)
                     <div class="events-section">
                         <h2 class="events-title">📋 Historial de Seguimiento</h2>
                         
-                        @foreach($shipment->tracking_events as $event)
+                        @foreach($trackingEvents as $event)
                             @php
+                                if (!is_array($event)) {
+                                    continue;
+                                }
                                 $eventText = $event['status'] ?? $event['description'] ?? '';
                                 // Translate event statuses
                                 if (stripos($eventText, 'recibido en oficina metrocentro') !== false || 
