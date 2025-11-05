@@ -1,3 +1,11 @@
+@php
+    try {
+        \Illuminate\Support\Facades\Log::info('=== VISTA SHIPMENT-DETAIL INICIANDO ===');
+        \Illuminate\Support\Facades\Log::info('Shipment ID: ' . ($shipment->id ?? 'NULL'));
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Error en logging inicial de vista: ' . $e->getMessage());
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
