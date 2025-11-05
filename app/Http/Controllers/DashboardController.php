@@ -80,14 +80,31 @@ class DashboardController extends Controller
                     ]);
                 }
 
+                // Determine internal_status based on external status
+                $internalStatus = 'en_transito';
+                if (isset($shipmentData['status'])) {
+                    if ($shipmentData['status'] === 'delivered') {
+                        $internalStatus = 'recibido_ch';
+                    } elseif ($shipmentData['status'] === 'pending') {
+                        $internalStatus = 'en_transito';
+                    }
+                }
+
+                // Prepare data for shipment (don't double-encode metadata)
+                $shipmentUpdateData = array_merge($shipmentData, [
+                    'warehouse_id' => $warehouse->id,
+                    'user_id' => $user->id,
+                    'internal_status' => $internalStatus,
+                    'metadata' => $shipmentData, // Already an array, model will cast to JSON
+                ]);
+
+                // Remove any fields that shouldn't be mass-assigned
+                unset($shipmentUpdateData['tracking_number']); // This is the key, not an update field
+
                 // Update or create shipment and assign to user
                 $shipment = Shipment::updateOrCreate(
                     ['tracking_number' => $trackingNumber],
-                    array_merge($shipmentData, [
-                        'warehouse_id' => $warehouse->id,
-                        'user_id' => $user->id,
-                        'metadata' => json_encode($shipmentData),
-                    ])
+                    $shipmentUpdateData
                 );
 
                 // Check if there was a pending tracking for this number and mark it as found
@@ -116,6 +133,13 @@ class DashboardController extends Controller
                 return redirect()->route('dashboard')->with('info', 'Tu tracking está en verificación, te notificaremos cuando esté disponible.');
             }
         } catch (\Exception $e) {
+            // Log the error for debugging
+            \Illuminate\Support\Facades\Log::error('Error tracking shipment: ' . $e->getMessage(), [
+                'tracking_number' => $trackingNumber,
+                'user_id' => $user->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             // On error, also create pending tracking
             PendingTracking::firstOrCreate(
                 [
@@ -129,7 +153,7 @@ class DashboardController extends Controller
                 ]
             );
 
-            return redirect()->route('dashboard')->with('info', 'Tu tracking está en verificación, te notificaremos cuando esté disponible.');
+            return redirect()->route('dashboard')->with('error', 'Error al rastrear el paquete. Se ha agregado a la cola de verificación: ' . $e->getMessage());
         }
     }
 
