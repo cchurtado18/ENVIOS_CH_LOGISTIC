@@ -42,25 +42,15 @@ class DashboardController extends Controller
                 return redirect()->route('login');
             }
             
-            // Get in-transit shipments (not delivered)
-            // A shipment is considered delivered if:
-            // 1. status === 'delivered' OR
-            // 2. delivery_date is not null
+            // Get in-transit shipments (not delivered) - Using model scope
             $inTransitShipments = Shipment::where('user_id', $user->id)
-                ->where(function($query) {
-                    $query->where('status', '!=', 'delivered')
-                          ->whereNull('delivery_date');
-                })
+                ->inTransit()
                 ->orderBy('created_at', 'desc')
                 ->get();
                 
-            // Get delivered shipments (history)
-            // A shipment is delivered if status is 'delivered' OR has delivery_date
+            // Get delivered shipments (history) - Using model scope
             $deliveredShipments = Shipment::where('user_id', $user->id)
-                ->where(function($query) {
-                    $query->where('status', 'delivered')
-                          ->orWhereNotNull('delivery_date');
-                })
+                ->delivered()
                 ->orderBy('delivery_date', 'desc')
                 ->orderBy('updated_at', 'desc')
                 ->limit(20)
@@ -120,25 +110,22 @@ class DashboardController extends Controller
                 }
 
                 // Determine internal_status based on external status
-                // A shipment is considered delivered if:
-                // 1. status === 'delivered' OR
-                // 2. delivery_date is set
-                $internalStatus = 'en_transito';
-                $isDelivered = false;
+                // Use Shipment model constants for consistency
+                $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
                 
-                if (isset($shipmentData['status']) && $shipmentData['status'] === 'delivered') {
+                // Check if shipment is delivered (status or delivery_date)
+                $isDelivered = false;
+                if (isset($shipmentData['status']) && $shipmentData['status'] === Shipment::STATUS_DELIVERED) {
                     $isDelivered = true;
-                    $internalStatus = 'recibido_ch';
                 } elseif (isset($shipmentData['delivery_date']) && !empty($shipmentData['delivery_date'])) {
-                    // If delivery_date exists, treat as delivered
                     $isDelivered = true;
-                    $internalStatus = 'recibido_ch';
                     // Ensure status is set to 'delivered' if delivery_date exists
-                    if (!isset($shipmentData['status']) || $shipmentData['status'] !== 'delivered') {
-                        $shipmentData['status'] = 'delivered';
-                    }
-                } elseif (isset($shipmentData['status']) && $shipmentData['status'] === 'pending') {
-                    $internalStatus = 'en_transito';
+                    $shipmentData['status'] = Shipment::STATUS_DELIVERED;
+                }
+                
+                // Set internal_status based on delivery status
+                if ($isDelivered) {
+                    $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
                 }
 
                 // Check if shipment already exists
