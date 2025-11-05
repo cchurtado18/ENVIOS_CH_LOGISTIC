@@ -1,4 +1,4 @@
-<a href="{{ route('dashboard.shipment', $shipment->id) }}" style="text-decoration: none; color: inherit; cursor: pointer;">
+<a href="{{ route('shipments.show', $shipment->id) }}" style="text-decoration: none; color: inherit; cursor: pointer;">
     <div class="shipment-item">
         <div class="shipment-header">
             <div class="tracking-number">{{ $shipment->tracking_number }}</div>
