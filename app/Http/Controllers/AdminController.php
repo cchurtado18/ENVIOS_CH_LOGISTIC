@@ -107,6 +107,8 @@ class AdminController extends Controller
             'password' => 'required|string|min:8',
         ]);
 
+        // Only admins can create users, and they are always created as 'client'
+        // To create an admin, it must be done manually via tinker or seeder
         $client = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -114,7 +116,7 @@ class AdminController extends Controller
             'department' => $request->department,
             'address' => $request->address,
             'password' => Hash::make($request->password),
-            'role' => 'client',
+            'role' => 'client', // Explicitly set - cannot be changed via this form
         ]);
 
         return redirect()->route('admin.clients')->with('success', 'Cliente creado exitosamente');
@@ -186,7 +188,10 @@ class AdminController extends Controller
             'address' => 'required|string|max:500',
         ]);
 
+        // Update client info - explicitly exclude 'role' to prevent unauthorized role changes
+        // Only admins can update clients, but they cannot change roles via this method
         $client->update($request->only(['name', 'email', 'phone', 'department', 'address']));
+        // Note: Role changes should be done manually via database or tinker for security
 
         return redirect()->route('admin.client', $client->id)->with('success', 'Cliente actualizado exitosamente');
     }

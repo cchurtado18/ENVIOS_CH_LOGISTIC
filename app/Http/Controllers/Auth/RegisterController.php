@@ -32,7 +32,7 @@ class RegisterController extends Controller
             'address' => 'required|string|max:500',
         ]);
 
-        // Create user directly
+        // Create user directly - ALWAYS as 'client' role
         $user = \App\Models\User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -40,6 +40,7 @@ class RegisterController extends Controller
             'phone' => $request->phone,
             'department' => $request->department,
             'address' => $request->address,
+            'role' => 'client', // Explicitly set as client - users cannot register as admin
         ]);
 
         // Log in the user automatically

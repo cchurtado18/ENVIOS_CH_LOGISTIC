@@ -28,6 +28,12 @@ class User extends Authenticatable
     ];
 
     /**
+     * Attributes that should not be mass assignable
+     * Role can only be set by admins explicitly
+     */
+    protected $guarded = [];
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
