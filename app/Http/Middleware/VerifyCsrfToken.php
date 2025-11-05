@@ -12,7 +12,9 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        // Add routes that should be excluded if needed
-        // 'api/*',
+        // Temporarily exclude login and register to debug 419 error
+        // TODO: Remove this after fixing session configuration
+        '/login',
+        '/register',
     ];
 }
