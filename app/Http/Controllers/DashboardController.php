@@ -14,43 +14,57 @@ class DashboardController extends Controller
 {
     protected $scrapingService;
 
-    public function __construct(EverestScrapingService $scrapingService)
+    public function __construct(EverestScrapingService $scrapingService = null)
     {
-        $this->scrapingService = $scrapingService;
+        // Make service optional to avoid breaking if service fails to instantiate
+        $this->scrapingService = $scrapingService ?? app(EverestScrapingService::class);
     }
     /**
      * Show client dashboard
      */
     public function index(): View
     {
-        $user = Auth::user();
-        
-        // Get in-transit shipments (not delivered)
-        $inTransitShipments = Shipment::where('user_id', $user->id)
-            ->where('status', '!=', 'delivered')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        try {
+            $user = Auth::user();
             
-        // Get delivered shipments (history)
-        $deliveredShipments = Shipment::where('user_id', $user->id)
-            ->where('status', 'delivered')
-            ->orderBy('delivery_date', 'desc')
-            ->limit(20)
-            ->get();
+            if (!$user) {
+                return redirect()->route('login');
+            }
             
-        // Get pending trackings (status: waiting = not verified yet)
-        $pendingTrackings = PendingTracking::where('user_id', $user->id)
-            ->where('status', 'waiting')
-            ->orderBy('created_at', 'desc')
-            ->get();
+            // Get in-transit shipments (not delivered)
+            $inTransitShipments = Shipment::where('user_id', $user->id)
+                ->where('status', '!=', 'delivered')
+                ->orderBy('created_at', 'desc')
+                ->get();
+                
+            // Get delivered shipments (history)
+            $deliveredShipments = Shipment::where('user_id', $user->id)
+                ->where('status', 'delivered')
+                ->orderBy('delivery_date', 'desc')
+                ->limit(20)
+                ->get();
+                
+            // Get pending trackings (status: waiting = not verified yet)
+            $pendingTrackings = PendingTracking::where('user_id', $user->id)
+                ->where('status', 'waiting')
+                ->orderBy('created_at', 'desc')
+                ->get();
 
-        return view('dashboard.index', [
-            'inTransitShipments' => $inTransitShipments,
-            'activeShipments' => $inTransitShipments, // Alias for compatibility
-            'deliveredShipments' => $deliveredShipments,
-            'pendingTrackings' => $pendingTrackings,
-            'user' => $user->only('id', 'name', 'email', 'role')
-        ]);
+            return view('dashboard.index', [
+                'inTransitShipments' => $inTransitShipments,
+                'activeShipments' => $inTransitShipments, // Alias for compatibility
+                'deliveredShipments' => $deliveredShipments,
+                'pendingTrackings' => $pendingTrackings,
+                'user' => $user->only('id', 'name', 'email', 'role')
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error loading dashboard: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return redirect()->route('login')->with('error', 'Error al cargar el dashboard. Por favor, intenta de nuevo.');
+        }
     }
 
     /**
@@ -66,6 +80,11 @@ class DashboardController extends Controller
         $trackingNumber = $request->input('tracking_number');
 
         try {
+            // Ensure scraping service is available
+            if (!$this->scrapingService) {
+                $this->scrapingService = app(EverestScrapingService::class);
+            }
+            
             // Try to scrape the shipment
             $shipmentData = $this->scrapingService->scrapeSingleShipment($trackingNumber);
 
