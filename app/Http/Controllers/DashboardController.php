@@ -285,6 +285,13 @@ class DashboardController extends Controller
 
             \Illuminate\Support\Facades\Log::info('Rendering view');
 
+            // Clear view cache before rendering to avoid stale compiled views
+            try {
+                \Illuminate\Support\Facades\Artisan::call('view:clear');
+            } catch (\Exception $e) {
+                // Ignore if cache clear fails
+            }
+
             return view('dashboard.shipment-detail', [
                 'shipment' => $shipment,
                 'user' => $user->only('id', 'name', 'email', 'role')
