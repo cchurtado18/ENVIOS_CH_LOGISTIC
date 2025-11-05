@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            // Add routes that should be excluded from CSRF if needed
+        ]);
+        
         $middleware->alias([
             'webauth' => \App\Http\Middleware\WebAuth::class,
             'admin' => \App\Http\Middleware\Admin::class,
