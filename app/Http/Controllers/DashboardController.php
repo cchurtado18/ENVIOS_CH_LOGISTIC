@@ -90,10 +90,12 @@ class DashboardController extends Controller
                     }
                 }
 
+                // Check if shipment already exists
+                $existingShipment = Shipment::where('tracking_number', $trackingNumber)->first();
+
                 // Prepare data for shipment (don't double-encode metadata)
                 $shipmentUpdateData = array_merge($shipmentData, [
                     'warehouse_id' => $warehouse->id,
-                    'user_id' => $user->id,
                     'internal_status' => $internalStatus,
                     'metadata' => $shipmentData, // Already an array, model will cast to JSON
                 ]);
@@ -101,11 +103,24 @@ class DashboardController extends Controller
                 // Remove any fields that shouldn't be mass-assigned
                 unset($shipmentUpdateData['tracking_number']); // This is the key, not an update field
 
-                // Update or create shipment and assign to user
-                $shipment = Shipment::updateOrCreate(
-                    ['tracking_number' => $trackingNumber],
-                    $shipmentUpdateData
-                );
+                if ($existingShipment) {
+                    // If shipment exists, check if it belongs to another user
+                    if ($existingShipment->user_id && $existingShipment->user_id !== $user->id) {
+                        return redirect()->route('dashboard')->with('error', 'Este paquete ya está asignado a otro cliente.');
+                    }
+                    
+                    // Update existing shipment and assign to current user
+                    $existingShipment->update(array_merge($shipmentUpdateData, [
+                        'user_id' => $user->id, // Always assign to current user
+                    ]));
+                    $shipment = $existingShipment;
+                } else {
+                    // Create new shipment and assign to user
+                    $shipmentUpdateData['user_id'] = $user->id;
+                    $shipment = Shipment::create(array_merge([
+                        'tracking_number' => $trackingNumber,
+                    ], $shipmentUpdateData));
+                }
 
                 // Check if there was a pending tracking for this number and mark it as found
                 PendingTracking::where('tracking_number', $trackingNumber)
