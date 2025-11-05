@@ -191,6 +191,13 @@
         </div>
         
         <div class="content">
+            @php
+                // Log to help debug
+                \Illuminate\Support\Facades\Log::info('View rendering started', [
+                    'shipment_id' => $shipment->id ?? 'null',
+                    'has_tracking_events' => isset($shipment->tracking_events),
+                ]);
+            @endphp
             @if($shipment)
                 @php
                     // Determine status display

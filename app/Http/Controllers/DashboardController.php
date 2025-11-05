@@ -205,27 +205,50 @@ class DashboardController extends Controller
      */
     public function show($id)
     {
+        \Illuminate\Support\Facades\Log::info('=== SHIPMENT SHOW START ===', [
+            'id' => $id,
+            'auth_check' => Auth::check(),
+            'user_id' => Auth::id(),
+        ]);
+
         try {
             // Check authentication first
             if (!Auth::check()) {
+                \Illuminate\Support\Facades\Log::warning('User not authenticated in shipment show');
                 return redirect()->route('login')->with('error', 'Debes iniciar sesión para ver este paquete.');
             }
             
             $user = Auth::user();
+            \Illuminate\Support\Facades\Log::info('User authenticated', ['user_id' => $user->id]);
             
             // Validate ID is numeric
             if (!is_numeric($id)) {
+                \Illuminate\Support\Facades\Log::warning('Invalid shipment ID', ['id' => $id]);
                 return redirect()->route('dashboard')->with('error', 'ID de paquete inválido.');
             }
             
             // Find shipment and ensure user owns it
+            \Illuminate\Support\Facades\Log::info('Searching for shipment', [
+                'shipment_id' => $id,
+                'user_id' => $user->id
+            ]);
+            
             $shipment = Shipment::where('id', $id)
                 ->where('user_id', $user->id)
                 ->first();
 
             if (!$shipment) {
+                \Illuminate\Support\Facades\Log::warning('Shipment not found or not owned by user', [
+                    'shipment_id' => $id,
+                    'user_id' => $user->id
+                ]);
                 return redirect()->route('dashboard')->with('error', 'No se encontró el paquete o no tienes permiso para verlo.');
             }
+
+            \Illuminate\Support\Facades\Log::info('Shipment found', [
+                'shipment_id' => $shipment->id,
+                'tracking_number' => $shipment->tracking_number
+            ]);
 
             // Safely handle tracking_events
             try {
@@ -239,6 +262,9 @@ class DashboardController extends Controller
                 } else {
                     $shipment->tracking_events = [];
                 }
+                \Illuminate\Support\Facades\Log::info('Tracking events processed', [
+                    'count' => count($shipment->tracking_events)
+                ]);
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::warning('Error decoding tracking_events: ' . $e->getMessage());
                 $shipment->tracking_events = [];
@@ -252,9 +278,12 @@ class DashboardController extends Controller
                 if ($shipment->delivery_date && !($shipment->delivery_date instanceof \Carbon\Carbon)) {
                     $shipment->delivery_date = \Carbon\Carbon::parse($shipment->delivery_date);
                 }
+                \Illuminate\Support\Facades\Log::info('Dates processed');
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::warning('Error parsing dates: ' . $e->getMessage());
             }
+
+            \Illuminate\Support\Facades\Log::info('Rendering view');
 
             return view('dashboard.shipment-detail', [
                 'shipment' => $shipment,
@@ -263,16 +292,17 @@ class DashboardController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             \Illuminate\Support\Facades\Log::error('ModelNotFoundException in shipment show: ' . $e->getMessage());
             return redirect()->route('dashboard')->with('error', 'No se encontró el paquete.');
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error showing shipment: ' . $e->getMessage(), [
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('FATAL ERROR in shipment show: ' . $e->getMessage(), [
                 'shipment_id' => $id ?? 'unknown',
                 'user_id' => Auth::id(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
+                'exception_class' => get_class($e),
             ]);
             
-            return redirect()->route('dashboard')->with('error', 'Error al cargar el paquete. Por favor, intenta de nuevo.');
+            return redirect()->route('dashboard')->with('error', 'Error al cargar el paquete: ' . $e->getMessage());
         }
     }
 
