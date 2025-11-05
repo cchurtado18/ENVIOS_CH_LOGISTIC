@@ -197,7 +197,7 @@
         <div class="header">
             <h1>✏️ Editar Factura #{{ $invoice->invoice_number }}</h1>
             <div class="header-actions">
-                <a href="{{ route('admin.invoice.show', $invoice->id) }}" class="back-btn">← Volver</a>
+                <a href="{{ route('admin.invoices.show', $invoice->id) }}" class="back-btn">← Volver</a>
             </div>
         </div>
         
@@ -209,7 +209,7 @@
             </div>
         @endif
         
-        <form method="POST" action="{{ route('admin.invoice.update', $invoice->id) }}" id="invoiceForm">
+        <form method="POST" action="{{ route('admin.invoices.update', $invoice->id) }}" id="invoiceForm">
             @csrf
             @method('PUT')
             

@@ -240,7 +240,7 @@
         <div class="card">
             <h2>1. Seleccionar Cliente</h2>
             <div class="client-select-box">
-                <form method="GET" action="{{ route('admin.invoice.create') }}">
+                <form method="GET" action="{{ route('admin.invoices.create') }}">
                     <label for="client_id">Cliente:</label>
                     <select name="client_id" id="client_id" required onchange="this.form.submit()">
                         <option value="">-- Seleccionar Cliente --</option>
@@ -255,7 +255,7 @@
         </div>
         
         @if($shipments->count() > 0)
-        <form method="POST" action="{{ route('admin.invoice.store') }}" id="invoiceForm">
+        <form method="POST" action="{{ route('admin.invoices.store') }}" id="invoiceForm">
             @csrf
             <input type="hidden" name="client_id" value="{{ request('client_id') }}">
             

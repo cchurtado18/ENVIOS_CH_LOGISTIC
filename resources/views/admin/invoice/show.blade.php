@@ -277,15 +277,15 @@
         @endif
         
         <div class="header">
-            <a href="{{ route('admin.invoice.index') }}" class="back-btn">← Volver a Facturas</a>
+            <a href="{{ route('admin.invoices') }}" class="back-btn">← Volver a Facturas</a>
             <div style="display: flex; gap: 10px;">
-                <a href="{{ route('admin.invoice.edit', $invoice->id) }}" class="back-btn" style="background: #ff751f;">✏️ Editar</a>
-                <form method="POST" action="{{ route('admin.invoice.destroy', $invoice->id) }}" style="display: inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta factura?')">
+                <a href="{{ route('admin.invoices.edit', $invoice->id) }}" class="back-btn" style="background: #ff751f;">✏️ Editar</a>
+                <form method="POST" action="{{ route('admin.invoices.destroy', $invoice->id) }}" style="display: inline;" onsubmit="return confirm('¿Está seguro que desea eliminar esta factura?')">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="back-btn" style="background: #dc3545;">🗑️ Eliminar</button>
                 </form>
-                <a href="{{ route('admin.invoice.pdf', $invoice->id) }}" class="print-btn" target="_blank">📄 Descargar PDF</a>
+                <a href="{{ route('admin.invoices.pdf', $invoice->id) }}" class="print-btn" target="_blank">📄 Descargar PDF</a>
             </div>
         </div>
         

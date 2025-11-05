@@ -171,7 +171,7 @@
             <h1>📄 Facturas</h1>
             <div class="header-actions">
                 <a href="{{ route('admin.index') }}" class="back-btn">← Panel Admin</a>
-                <a href="{{ route('admin.invoice.create') }}" class="create-btn">➕ Nueva Factura</a>
+                <a href="{{ route('admin.invoices.create') }}" class="create-btn">➕ Nueva Factura</a>
                 <form method="POST" action="{{ route('logout') }}" style="display: inline;">
                     @csrf
                     <button type="submit" class="logout-btn">Cerrar Sesión</button>
@@ -201,7 +201,7 @@
                                 <td>{{ $invoice->package_count }}</td>
                                 <td style="font-weight: 600; color: #1262b4;">${{ number_format($invoice->total_amount, 2) }}</td>
                                 <td>
-                                    <a href="{{ route('admin.invoice.show', $invoice->id) }}" class="view-btn">Ver Factura</a>
+                                    <a href="{{ route('admin.invoices.show', $invoice->id) }}" class="view-btn">Ver Factura</a>
                                 </td>
                             </tr>
                         @endforeach
