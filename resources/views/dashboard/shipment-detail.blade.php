@@ -230,19 +230,31 @@
                         </div>
                     </div>
                     
-                    @if($shipment->pickup_date)
-                        <div class="info-card">
-                            <div class="info-label">Fecha de Registro</div>
-                            <div class="info-value">{{ $shipment->pickup_date->format('d/m/Y H:i') }}</div>
-                        </div>
-                    @endif
-                    
-                    @if($shipment->delivery_date)
-                        <div class="info-card">
-                            <div class="info-label">Fecha de Entrega</div>
-                            <div class="info-value">{{ $shipment->delivery_date->format('d/m/Y H:i') }}</div>
-                        </div>
-                    @endif
+                        @if($shipment->pickup_date)
+                            <div class="info-card">
+                                <div class="info-label">Fecha de Registro</div>
+                                <div class="info-value">
+                                    @if($shipment->pickup_date instanceof \Carbon\Carbon)
+                                        {{ $shipment->pickup_date->format('d/m/Y H:i') }}
+                                    @else
+                                        {{ \Carbon\Carbon::parse($shipment->pickup_date)->format('d/m/Y H:i') }}
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                        
+                        @if($shipment->delivery_date)
+                            <div class="info-card">
+                                <div class="info-label">Fecha de Entrega</div>
+                                <div class="info-value">
+                                    @if($shipment->delivery_date instanceof \Carbon\Carbon)
+                                        {{ $shipment->delivery_date->format('d/m/Y H:i') }}
+                                    @else
+                                        {{ \Carbon\Carbon::parse($shipment->delivery_date)->format('d/m/Y H:i') }}
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     
                     @if($shipment->carrier)
                         <div class="info-card">

@@ -203,13 +203,19 @@ class DashboardController extends Controller
     /**
      * Show shipment details
      */
-    public function show($id): View
+    public function show($id)
     {
         try {
+            // Check authentication first
+            if (!Auth::check()) {
+                return redirect()->route('login')->with('error', 'Debes iniciar sesión para ver este paquete.');
+            }
+            
             $user = Auth::user();
             
-            if (!$user) {
-                return redirect()->route('login')->with('error', 'Debes iniciar sesión para ver este paquete.');
+            // Validate ID is numeric
+            if (!is_numeric($id)) {
+                return redirect()->route('dashboard')->with('error', 'ID de paquete inválido.');
             }
             
             // Find shipment and ensure user owns it
@@ -221,9 +227,33 @@ class DashboardController extends Controller
                 return redirect()->route('dashboard')->with('error', 'No se encontró el paquete o no tienes permiso para verlo.');
             }
 
-            // Ensure tracking_events is properly cast
-            if ($shipment->tracking_events && is_string($shipment->tracking_events)) {
-                $shipment->tracking_events = json_decode($shipment->tracking_events, true) ?? [];
+            // Safely handle tracking_events
+            try {
+                if ($shipment->tracking_events) {
+                    if (is_string($shipment->tracking_events)) {
+                        $decoded = json_decode($shipment->tracking_events, true);
+                        $shipment->tracking_events = is_array($decoded) ? $decoded : [];
+                    } elseif (!is_array($shipment->tracking_events)) {
+                        $shipment->tracking_events = [];
+                    }
+                } else {
+                    $shipment->tracking_events = [];
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Error decoding tracking_events: ' . $e->getMessage());
+                $shipment->tracking_events = [];
+            }
+
+            // Ensure dates are Carbon instances
+            try {
+                if ($shipment->pickup_date && !($shipment->pickup_date instanceof \Carbon\Carbon)) {
+                    $shipment->pickup_date = \Carbon\Carbon::parse($shipment->pickup_date);
+                }
+                if ($shipment->delivery_date && !($shipment->delivery_date instanceof \Carbon\Carbon)) {
+                    $shipment->delivery_date = \Carbon\Carbon::parse($shipment->delivery_date);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('Error parsing dates: ' . $e->getMessage());
             }
 
             return view('dashboard.shipment-detail', [
@@ -231,11 +261,14 @@ class DashboardController extends Controller
                 'user' => $user->only('id', 'name', 'email', 'role')
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Illuminate\Support\Facades\Log::error('ModelNotFoundException in shipment show: ' . $e->getMessage());
             return redirect()->route('dashboard')->with('error', 'No se encontró el paquete.');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error showing shipment: ' . $e->getMessage(), [
                 'shipment_id' => $id ?? 'unknown',
                 'user_id' => Auth::id(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
             
