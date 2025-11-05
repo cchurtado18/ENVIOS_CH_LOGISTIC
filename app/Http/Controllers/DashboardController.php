@@ -14,10 +14,21 @@ class DashboardController extends Controller
 {
     protected $scrapingService;
 
-    public function __construct(EverestScrapingService $scrapingService = null)
+    public function __construct()
     {
-        // Make service optional to avoid breaking if service fails to instantiate
-        $this->scrapingService = $scrapingService ?? app(EverestScrapingService::class);
+        // Lazy load the service to avoid breaking if service fails to instantiate
+        // We'll load it when needed in the track() method
+    }
+    
+    /**
+     * Get scraping service instance
+     */
+    protected function getScrapingService(): EverestScrapingService
+    {
+        if (!$this->scrapingService) {
+            $this->scrapingService = app(EverestScrapingService::class);
+        }
+        return $this->scrapingService;
     }
     /**
      * Show client dashboard
@@ -80,13 +91,11 @@ class DashboardController extends Controller
         $trackingNumber = $request->input('tracking_number');
 
         try {
-            // Ensure scraping service is available
-            if (!$this->scrapingService) {
-                $this->scrapingService = app(EverestScrapingService::class);
-            }
+            // Get scraping service
+            $scrapingService = $this->getScrapingService();
             
             // Try to scrape the shipment
-            $shipmentData = $this->scrapingService->scrapeSingleShipment($trackingNumber);
+            $shipmentData = $scrapingService->scrapeSingleShipment($trackingNumber);
 
             if ($shipmentData) {
                 // Find or create warehouse
