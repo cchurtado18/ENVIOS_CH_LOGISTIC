@@ -209,18 +209,29 @@ class DashboardController extends Controller
             $user = Auth::user();
             
             if (!$user) {
-                return redirect()->route('login');
+                return redirect()->route('login')->with('error', 'Debes iniciar sesión para ver este paquete.');
             }
             
             // Find shipment and ensure user owns it
             $shipment = Shipment::where('id', $id)
                 ->where('user_id', $user->id)
-                ->firstOrFail();
+                ->first();
+
+            if (!$shipment) {
+                return redirect()->route('dashboard')->with('error', 'No se encontró el paquete o no tienes permiso para verlo.');
+            }
+
+            // Ensure tracking_events is properly cast
+            if ($shipment->tracking_events && is_string($shipment->tracking_events)) {
+                $shipment->tracking_events = json_decode($shipment->tracking_events, true) ?? [];
+            }
 
             return view('dashboard.shipment-detail', [
                 'shipment' => $shipment,
                 'user' => $user->only('id', 'name', 'email', 'role')
             ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return redirect()->route('dashboard')->with('error', 'No se encontró el paquete.');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Error showing shipment: ' . $e->getMessage(), [
                 'shipment_id' => $id ?? 'unknown',
@@ -228,7 +239,7 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
             
-            return redirect()->route('dashboard')->with('error', 'No se pudo encontrar el paquete.');
+            return redirect()->route('dashboard')->with('error', 'Error al cargar el paquete. Por favor, intenta de nuevo.');
         }
     }
 
