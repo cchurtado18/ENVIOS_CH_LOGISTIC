@@ -35,7 +35,7 @@ Route::post('/password/reset', [ResetPasswordController::class, 'reset'])->name(
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/dashboard/track', [DashboardController::class, 'track'])->name('dashboard.track');
-    Route::get('/shipments/{shipment}', [DashboardController::class, 'show'])->name('shipments.show');
+    Route::get('/shipments/{id}', [DashboardController::class, 'show'])->name('shipments.show');
     Route::get('/pending-tracking', [DashboardController::class, 'pending'])->name('pending.tracking');
     Route::delete('/pending-tracking/{pendingTracking}', [DashboardController::class, 'deletePending'])->name('pending-tracking.delete');
     Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');

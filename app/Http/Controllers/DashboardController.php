@@ -203,17 +203,33 @@ class DashboardController extends Controller
     /**
      * Show shipment details
      */
-    public function show(Shipment $shipment): View
+    public function show($id): View
     {
-        // Ensure user owns this shipment
-        if ($shipment->user_id !== Auth::id()) {
-            abort(403);
-        }
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return redirect()->route('login');
+            }
+            
+            // Find shipment and ensure user owns it
+            $shipment = Shipment::where('id', $id)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
 
-        return view('dashboard.shipment-detail', [
-            'shipment' => $shipment,
-            'user' => Auth::user()->only('id', 'name', 'email', 'role')
-        ]);
+            return view('dashboard.shipment-detail', [
+                'shipment' => $shipment,
+                'user' => $user->only('id', 'name', 'email', 'role')
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error showing shipment: ' . $e->getMessage(), [
+                'shipment_id' => $id ?? 'unknown',
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return redirect()->route('dashboard')->with('error', 'No se pudo encontrar el paquete.');
+        }
     }
 
     /**
