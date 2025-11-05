@@ -205,49 +205,50 @@ class DashboardController extends Controller
      */
     public function show($id)
     {
-        \Illuminate\Support\Facades\Log::info('=== SHIPMENT SHOW START ===', [
-            'id' => $id,
-            'auth_check' => Auth::check(),
-            'user_id' => Auth::id(),
-        ]);
+        $log = \Illuminate\Support\Facades\Log::channel('single');
+        $log->info('========================================');
+        $log->info('=== SHIPMENT SHOW METHOD CALLED ===');
+        $log->info('ID recibido: ' . $id);
+        $log->info('Auth check: ' . (Auth::check() ? 'SI' : 'NO'));
+        $log->info('User ID: ' . (Auth::id() ?? 'NULL'));
+        $log->info('Session ID: ' . session()->getId());
+        $log->info('Request URL: ' . request()->fullUrl());
+        $log->info('Request Method: ' . request()->method());
 
         try {
             // Check authentication first
             if (!Auth::check()) {
-                \Illuminate\Support\Facades\Log::warning('User not authenticated in shipment show');
+                $log->warning('Usuario NO autenticado - redirigiendo a login');
                 return redirect()->route('login')->with('error', 'Debes iniciar sesión para ver este paquete.');
             }
             
             $user = Auth::user();
-            \Illuminate\Support\Facades\Log::info('User authenticated', ['user_id' => $user->id]);
+            $log->info('Usuario autenticado correctamente', ['user_id' => $user->id, 'email' => $user->email]);
             
             // Validate ID is numeric
             if (!is_numeric($id)) {
-                \Illuminate\Support\Facades\Log::warning('Invalid shipment ID', ['id' => $id]);
+                $log->warning('ID no es numérico: ' . $id);
                 return redirect()->route('dashboard')->with('error', 'ID de paquete inválido.');
             }
             
-            // Find shipment and ensure user owns it
-            \Illuminate\Support\Facades\Log::info('Searching for shipment', [
-                'shipment_id' => $id,
-                'user_id' => $user->id
-            ]);
+            $log->info('Buscando shipment en BD', ['shipment_id' => $id, 'user_id' => $user->id]);
             
             $shipment = Shipment::where('id', $id)
                 ->where('user_id', $user->id)
                 ->first();
 
             if (!$shipment) {
-                \Illuminate\Support\Facades\Log::warning('Shipment not found or not owned by user', [
+                $log->warning('Shipment NO encontrado o no pertenece al usuario', [
                     'shipment_id' => $id,
                     'user_id' => $user->id
                 ]);
                 return redirect()->route('dashboard')->with('error', 'No se encontró el paquete o no tienes permiso para verlo.');
             }
 
-            \Illuminate\Support\Facades\Log::info('Shipment found', [
+            $log->info('Shipment encontrado', [
                 'shipment_id' => $shipment->id,
-                'tracking_number' => $shipment->tracking_number
+                'tracking_number' => $shipment->tracking_number,
+                'status' => $shipment->status
             ]);
 
             // Safely handle tracking_events
@@ -262,11 +263,9 @@ class DashboardController extends Controller
                 } else {
                     $shipment->tracking_events = [];
                 }
-                \Illuminate\Support\Facades\Log::info('Tracking events processed', [
-                    'count' => count($shipment->tracking_events)
-                ]);
+                $log->info('Tracking events procesados', ['count' => count($shipment->tracking_events)]);
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Error decoding tracking_events: ' . $e->getMessage());
+                $log->warning('Error decodificando tracking_events: ' . $e->getMessage());
                 $shipment->tracking_events = [];
             }
 
@@ -278,30 +277,40 @@ class DashboardController extends Controller
                 if ($shipment->delivery_date && !($shipment->delivery_date instanceof \Carbon\Carbon)) {
                     $shipment->delivery_date = \Carbon\Carbon::parse($shipment->delivery_date);
                 }
-                \Illuminate\Support\Facades\Log::info('Dates processed');
+                $log->info('Fechas procesadas correctamente');
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('Error parsing dates: ' . $e->getMessage());
+                $log->warning('Error parseando fechas: ' . $e->getMessage());
             }
 
-            \Illuminate\Support\Facades\Log::info('Rendering view');
+            $log->info('ANTES DE RENDERIZAR VISTA');
+            $log->info('Ruta de vista: dashboard.shipment-detail');
+            $log->info('Variables a pasar: shipment, tracking_number, user');
 
-            return view('dashboard.shipment-detail', [
+            $view = view('dashboard.shipment-detail', [
                 'shipment' => $shipment,
                 'tracking_number' => $shipment->tracking_number,
                 'user' => $user->only('id', 'name', 'email', 'role')
             ]);
+
+            $log->info('VISTA CREADA - RETORNANDO');
+            $log->info('========================================');
+            
+            return $view;
+            
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            \Illuminate\Support\Facades\Log::error('ModelNotFoundException in shipment show: ' . $e->getMessage());
+            $log->error('ModelNotFoundException: ' . $e->getMessage());
+            $log->info('========================================');
             return redirect()->route('dashboard')->with('error', 'No se encontró el paquete.');
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('FATAL ERROR in shipment show: ' . $e->getMessage(), [
-                'shipment_id' => $id ?? 'unknown',
-                'user_id' => Auth::id(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-                'exception_class' => get_class($e),
-            ]);
+            $log->error('========================================');
+            $log->error('ERROR FATAL EN SHIPMENT SHOW');
+            $log->error('Mensaje: ' . $e->getMessage());
+            $log->error('Archivo: ' . $e->getFile());
+            $log->error('Línea: ' . $e->getLine());
+            $log->error('Clase: ' . get_class($e));
+            $log->error('Trace completo:');
+            $log->error($e->getTraceAsString());
+            $log->error('========================================');
             
             return redirect()->route('dashboard')->with('error', 'Error al cargar el paquete: ' . $e->getMessage());
         }
