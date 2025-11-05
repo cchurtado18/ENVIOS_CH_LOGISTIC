@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'webauth' => \App\Http\Middleware\WebAuth::class,
+            'admin' => \App\Http\Middleware\Admin::class,
         ]);
     })
     ->withSchedule(function ($schedule): void {
