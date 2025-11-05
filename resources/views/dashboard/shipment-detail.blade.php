@@ -187,20 +187,27 @@
     <div class="container">
         <div class="header">
             <h1>📦 Estado del Paquete</h1>
-            <p class="tracking-number">{{ $shipment['tracking_number'] }}</p>
+            <p class="tracking-number">{{ $shipment->tracking_number }}</p>
         </div>
         
         <div class="content">
             @if($shipment)
                 @php
-                    $statusClass = 'status-' . ($shipment['status'] ?? 'pending');
+                    // Determine status display
+                    $statusValue = $shipment->status ?? 'pending';
+                    // If status is pending but has tracking events, show as in_transit
+                    if ($statusValue === 'pending' && $shipment->tracking_events && count($shipment->tracking_events) > 0) {
+                        $statusValue = 'in_transit';
+                    }
+                    
+                    $statusClass = 'status-' . $statusValue;
                     $statusText = [
                         'delivered' => 'Entregado',
                         'pending' => 'Pendiente',
                         'in_transit' => 'En Tránsito',
                         'exception' => 'Excepción'
                     ];
-                    $status = $statusText[$shipment['status'] ?? 'pending'] ?? 'Pendiente';
+                    $status = $statusText[$statusValue] ?? 'Pendiente';
                 @endphp
                 
                 <div class="status-badge {{ $statusClass }}">
@@ -210,47 +217,54 @@
                 <div class="info-grid">
                     <div class="info-card">
                         <div class="info-label">WRH</div>
-                        <div class="info-value @if(($shipment['wrh'] ?? 'pendiente') === 'pendiente') text-muted @endif">
-                            {{ $shipment['wrh'] ?? 'pendiente' }}
+                        <div class="info-value @if(($shipment->wrh ?? 'pendiente') === 'pendiente') text-muted @endif">
+                            {{ $shipment->wrh ?? 'pendiente' }}
                         </div>
                     </div>
                     
-                    @if(isset($shipment['pickup_date']))
+                    @if($shipment->weight)
+                        <div class="info-card">
+                            <div class="info-label">Peso</div>
+                            <div class="info-value">{{ number_format($shipment->weight, 2) }} {{ $shipment->weight_unit ?? 'lbs' }}</div>
+                        </div>
+                    @endif
+                    
+                    @if($shipment->pickup_date)
                         <div class="info-card">
                             <div class="info-label">Fecha de Registro</div>
-                            <div class="info-value">{{ \Carbon\Carbon::parse($shipment['pickup_date'])->format('d/m/Y H:i') }}</div>
+                            <div class="info-value">{{ $shipment->pickup_date->format('d/m/Y H:i') }}</div>
                         </div>
                     @endif
                     
-                    @if(isset($shipment['delivery_date']))
+                    @if($shipment->delivery_date)
                         <div class="info-card">
                             <div class="info-label">Fecha de Entrega</div>
-                            <div class="info-value">{{ \Carbon\Carbon::parse($shipment['delivery_date'])->format('d/m/Y H:i') }}</div>
+                            <div class="info-value">{{ $shipment->delivery_date->format('d/m/Y H:i') }}</div>
                         </div>
                     @endif
                     
-                    @if(isset($shipment['carrier']))
+                    @if($shipment->carrier)
                         <div class="info-card">
                             <div class="info-label">Transportista</div>
-                            <div class="info-value">{{ $shipment['carrier'] }}</div>
+                            <div class="info-value">{{ $shipment->carrier }}</div>
                         </div>
                     @endif
                     
-                    @if(isset($shipment['description']))
+                    @if($shipment->description)
                         <div class="info-card">
                             <div class="info-label">Descripción</div>
-                            <div class="info-value">{{ $shipment['description'] }}</div>
+                            <div class="info-value">{{ $shipment->description }}</div>
                         </div>
                     @endif
                 </div>
                 
-                @if(isset($shipment['tracking_events']) && count($shipment['tracking_events']) > 0)
+                @if($shipment->tracking_events && count($shipment->tracking_events) > 0)
                     <div class="events-section">
                         <h2 class="events-title">📋 Historial de Seguimiento</h2>
                         
-                        @foreach($shipment['tracking_events'] as $event)
+                        @foreach($shipment->tracking_events as $event)
                             @php
-                                $eventText = $event['status'] ?? $event['description'];
+                                $eventText = $event['status'] ?? $event['description'] ?? '';
                                 // Translate event statuses
                                 if (stripos($eventText, 'recibido en oficina metrocentro') !== false || 
                                     stripos($eventText, 'received in metrocentro office') !== false) {
@@ -280,4 +294,5 @@
     </div>
 </body>
 </html>
+
 
