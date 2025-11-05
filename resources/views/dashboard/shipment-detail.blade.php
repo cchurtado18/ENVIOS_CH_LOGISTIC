@@ -191,13 +191,6 @@
         </div>
         
         <div class="content">
-            @php
-                // Log to help debug
-                \Illuminate\Support\Facades\Log::info('View rendering started', [
-                    'shipment_id' => $shipment->id ?? 'null',
-                    'has_tracking_events' => isset($shipment->tracking_events),
-                ]);
-            @endphp
             @if($shipment)
                 @php
                     // Determine status display
@@ -338,6 +331,10 @@
             
             <div style="text-align: center; margin-top: 30px; padding-top: 30px; border-top: 1px solid #e0e0e0;">
                 <a href="{{ route('dashboard') }}" class="btn-back">← Volver al Dashboard</a>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                <a href="{{ route('tracking.show.es') }}" class="btn-back" style="background: #ff751f; margin-left: 10px;">🔍 Rastrear Otro Paquete</a>
             </div>
         </div>
     </div>
