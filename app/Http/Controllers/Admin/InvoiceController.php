@@ -364,33 +364,64 @@ class InvoiceController extends Controller
 
             DB::beginTransaction();
 
+            // Get shipments associated with this invoice BEFORE deleting
+            $shipments = Shipment::where('invoice_id', $invoice->id)->get();
+
             // Restore shipments to their previous status before invoicing
-            $shipments = $invoice->shipments;
-            
             foreach ($shipments as $shipment) {
-                // Get previous status from metadata
-                $metadata = $shipment->metadata ?? [];
-                $previousStatus = $metadata['previous_internal_status_before_invoice'] ?? 'recibido_ch';
-                
-                // Ensure previous status is valid
-                if (!in_array($previousStatus, ['en_transito', 'recibido_ch', 'facturado', 'entregado'])) {
-                    // Default to recibido_ch if previous status is invalid
-                    $previousStatus = 'recibido_ch';
+                try {
+                    // Get previous status from metadata
+                    $metadata = is_array($shipment->metadata) ? $shipment->metadata : (is_string($shipment->metadata) ? json_decode($shipment->metadata, true) : []);
+                    if (!is_array($metadata)) {
+                        $metadata = [];
+                    }
+                    
+                    $previousStatus = $metadata['previous_internal_status_before_invoice'] ?? null;
+                    
+                    // If no previous status in metadata, determine based on delivery status
+                    if (!$previousStatus) {
+                        // If shipment is delivered, restore to recibido_ch
+                        // Otherwise, restore to recibido_ch (most common before invoicing)
+                        if ($shipment->status === Shipment::STATUS_DELIVERED || $shipment->delivery_date) {
+                            $previousStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                        } else {
+                            $previousStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                        }
+                    }
+                    
+                    // Ensure previous status is valid
+                    if (!in_array($previousStatus, [
+                        Shipment::INTERNAL_STATUS_EN_TRANSITO,
+                        Shipment::INTERNAL_STATUS_RECIBIDO_CH,
+                        Shipment::INTERNAL_STATUS_FACTURADO,
+                        Shipment::INTERNAL_STATUS_ENTREGADO
+                    ])) {
+                        // Default to recibido_ch if previous status is invalid
+                        $previousStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                    }
+                    
+                    // Remove previous status from metadata
+                    if (isset($metadata['previous_internal_status_before_invoice'])) {
+                        unset($metadata['previous_internal_status_before_invoice']);
+                    }
+                    
+                    // Update shipment - restore to previous status
+                    $shipment->update([
+                        'invoice_id' => null,
+                        'invoiced_at' => null,
+                        'invoice_value' => null,
+                        'service_type_billing' => null,
+                        'price_per_pound' => null,
+                        'internal_status' => $previousStatus,
+                        'metadata' => $metadata,
+                    ]);
+                } catch (\Exception $e) {
+                    // Log error for individual shipment but continue with others
+                    \Illuminate\Support\Facades\Log::warning('Error restoring shipment when deleting invoice: ' . $e->getMessage(), [
+                        'shipment_id' => $shipment->id,
+                        'invoice_id' => $id,
+                    ]);
                 }
-                
-                // Remove previous status from metadata
-                unset($metadata['previous_internal_status_before_invoice']);
-                
-                // Update shipment - restore to previous status
-                $shipment->update([
-                    'invoice_id' => null,
-                    'invoiced_at' => null,
-                    'invoice_value' => null,
-                    'service_type_billing' => null,
-                    'price_per_pound' => null,
-                    'internal_status' => $previousStatus,
-                    'metadata' => $metadata,
-                ]);
             }
 
             // Delete invoice
@@ -408,6 +439,8 @@ class InvoiceController extends Controller
             \Illuminate\Support\Facades\Log::error('Error deleting invoice: ' . $e->getMessage(), [
                 'invoice_id' => $id,
                 'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
             
             return redirect()->route('admin.invoice.index')
