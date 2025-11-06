@@ -169,7 +169,7 @@
                 Si el paquete no existe en el sistema, lo buscaremos y crearemos automáticamente.
             </p>
             
-            <form method="POST" action="{{ route('admin.client.assign.store', $client->id) }}">
+            <form method="POST" action="{{ route('admin.client.assign.post', $client->id) }}">
                 @csrf
                 
                 <div class="form-group">

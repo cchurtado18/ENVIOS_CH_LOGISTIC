@@ -223,16 +223,24 @@ class AdminController extends Controller
      */
     public function assignPackage($id): View
     {
-        if (!Auth::check() || !Auth::user()->isAdmin()) {
-            abort(403);
+        try {
+            if (!Auth::check() || !Auth::user()->isAdmin()) {
+                abort(403);
+            }
+
+            $client = User::findOrFail($id);
+
+            return view('admin.assign-package', [
+                'client' => $client,
+                'user' => Auth::user()->only('id', 'name', 'email', 'role')
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error showing assign package form: ' . $e->getMessage(), [
+                'client_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            abort(500, 'Error al cargar el formulario de asignación: ' . $e->getMessage());
         }
-
-        $client = User::findOrFail($id);
-
-        return view('admin.assign-package', [
-            'client' => $client,
-            'user' => Auth::user()->only('id', 'name', 'email', 'role')
-        ]);
     }
 
     /**
@@ -251,20 +259,70 @@ class AdminController extends Controller
         ]);
 
         try {
-            // Scrape the shipment
-            $shipment = $this->scrapingService->scrapeSingleShipment($request->tracking_number);
+            // Scrape the shipment - returns an array, not a model
+            $shipmentData = $this->scrapingService->scrapeSingleShipment($request->tracking_number);
 
-            if (!$shipment) {
+            if (!$shipmentData) {
                 return back()->withErrors(['tracking_number' => 'No se pudo encontrar el paquete con ese número de tracking.']);
             }
 
-            // Assign to client
-            $shipment->update([
-                'user_id' => $client->id,
+            // Find or create warehouse
+            $warehouse = \App\Models\Warehouse::first();
+            if (!$warehouse) {
+                $warehouse = \App\Models\Warehouse::create([
+                    'name' => 'Default Warehouse',
+                    'code' => 'DEFAULT',
+                    'is_active' => true,
+                ]);
+            }
+
+            // Determine internal_status based on delivery status
+            $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
+            $isDelivered = false;
+            
+            if (isset($shipmentData['status']) && $shipmentData['status'] === Shipment::STATUS_DELIVERED) {
+                $isDelivered = true;
+                $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+            } elseif (isset($shipmentData['delivery_date']) && !empty($shipmentData['delivery_date'])) {
+                $isDelivered = true;
+                $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                if (!isset($shipmentData['status']) || $shipmentData['status'] !== Shipment::STATUS_DELIVERED) {
+                    $shipmentData['status'] = Shipment::STATUS_DELIVERED;
+                }
+            }
+
+            // Check if shipment already exists
+            $existingShipment = Shipment::where('tracking_number', $request->tracking_number)->first();
+
+            // Prepare data for shipment
+            $shipmentUpdateData = array_merge($shipmentData, [
+                'warehouse_id' => $warehouse->id,
+                'internal_status' => $internalStatus,
+                'metadata' => $shipmentData,
+                'user_id' => $client->id, // Assign to client
             ]);
+
+            // Remove tracking_number from update data (it's the key)
+            unset($shipmentUpdateData['tracking_number']);
+
+            if ($existingShipment) {
+                // Update existing shipment and assign to client
+                $existingShipment->update($shipmentUpdateData);
+                $shipment = $existingShipment;
+            } else {
+                // Create new shipment and assign to client
+                $shipment = Shipment::create(array_merge([
+                    'tracking_number' => $request->tracking_number,
+                ], $shipmentUpdateData));
+            }
 
             return redirect()->route('admin.client', $client->id)->with('success', 'Paquete asignado exitosamente al cliente.');
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error assigning package: ' . $e->getMessage(), [
+                'tracking_number' => $request->tracking_number,
+                'client_id' => $client->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
             return back()->withErrors(['tracking_number' => 'Error al rastrear el paquete: ' . $e->getMessage()]);
         }
     }
