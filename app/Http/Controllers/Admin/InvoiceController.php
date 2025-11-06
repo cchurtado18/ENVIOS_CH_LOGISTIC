@@ -160,13 +160,17 @@ class InvoiceController extends Controller
                 'note' => $request->note,
             ]);
 
-            // Update shipments
+            // Update shipments - save previous status before invoicing
             foreach ($shipments as $shipment) {
                 if (isset($servicesLookup[$shipment->id])) {
                     $service = $servicesLookup[$shipment->id];
                     $weight = $shipment->weight ?? 0;
                     // Minimum 1 lb charge, then use actual weight
                     $billingWeight = $weight < 1 ? 1 : $weight;
+                    
+                    // Save previous internal_status in metadata before changing
+                    $metadata = $shipment->metadata ?? [];
+                    $metadata['previous_internal_status_before_invoice'] = $shipment->internal_status;
                     
                     $shipment->update([
                         'invoice_id' => $invoice->id,
@@ -176,6 +180,7 @@ class InvoiceController extends Controller
                         'invoiced_at' => now(),
                         'internal_status' => 'facturado',
                         'description' => $service['description'] ?? $shipment->description,
+                        'metadata' => $metadata,
                     ]);
                 }
             }
@@ -354,18 +359,37 @@ class InvoiceController extends Controller
             return redirect()->route('dashboard')->with('error', 'No tienes permisos');
         }
 
-        $invoice = Invoice::findOrFail($id);
-
         try {
+            $invoice = Invoice::with('shipments')->findOrFail($id);
+
             DB::beginTransaction();
 
-            // Remove invoice association from shipments
+            // Restore shipments to their previous status before invoicing
             $shipments = $invoice->shipments;
+            
             foreach ($shipments as $shipment) {
+                // Get previous status from metadata
+                $metadata = $shipment->metadata ?? [];
+                $previousStatus = $metadata['previous_internal_status_before_invoice'] ?? 'recibido_ch';
+                
+                // Ensure previous status is valid
+                if (!in_array($previousStatus, ['en_transito', 'recibido_ch', 'facturado', 'entregado'])) {
+                    // Default to recibido_ch if previous status is invalid
+                    $previousStatus = 'recibido_ch';
+                }
+                
+                // Remove previous status from metadata
+                unset($metadata['previous_internal_status_before_invoice']);
+                
+                // Update shipment - restore to previous status
                 $shipment->update([
                     'invoice_id' => null,
                     'invoiced_at' => null,
-                    'internal_status' => 'recibido_ch',
+                    'invoice_value' => null,
+                    'service_type_billing' => null,
+                    'price_per_pound' => null,
+                    'internal_status' => $previousStatus,
+                    'metadata' => $metadata,
                 ]);
             }
 
@@ -375,10 +399,17 @@ class InvoiceController extends Controller
             DB::commit();
 
             return redirect()->route('admin.invoice.index')
-                ->with('success', 'Factura eliminada correctamente');
+                ->with('success', 'Factura eliminada correctamente. Los paquetes han regresado a su estado anterior.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Log the error for debugging
+            \Illuminate\Support\Facades\Log::error('Error deleting invoice: ' . $e->getMessage(), [
+                'invoice_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
             return redirect()->route('admin.invoice.index')
                 ->with('error', 'Error al eliminar la factura: ' . $e->getMessage());
         }
