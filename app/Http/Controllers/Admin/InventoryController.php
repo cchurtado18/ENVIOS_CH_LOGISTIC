@@ -25,6 +25,26 @@ class InventoryController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Ensure all shipments have an internal_status
+        // Auto-assign internal_status for shipments that don't have it
+        foreach ($shipments as $shipment) {
+            if (!$shipment->internal_status) {
+                // Determine internal_status based on delivery status
+                if ($shipment->isDelivered()) {
+                    $shipment->internal_status = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                } else {
+                    $shipment->internal_status = Shipment::INTERNAL_STATUS_EN_TRANSITO;
+                }
+                // Save without triggering events to avoid infinite loops
+                $shipment->saveQuietly();
+            }
+        }
+
+        // Refresh shipments to get updated internal_status
+        $shipments = Shipment::with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $groupedShipments = [
             'recibido_ch' => $shipments->where('internal_status', 'recibido_ch'),
             'en_transito' => $shipments->where('internal_status', 'en_transito'),

@@ -59,57 +59,64 @@ class CheckShipmentUpdates extends Command
                     continue;
                 }
                 
+                // Determine internal_status based on delivery status
+                // Check if delivered (status or delivery_date)
+                $isDelivered = false;
+                if (isset($scrapedData['status']) && $scrapedData['status'] === Shipment::STATUS_DELIVERED) {
+                    $isDelivered = true;
+                } elseif (isset($scrapedData['delivery_date']) && !empty($scrapedData['delivery_date'])) {
+                    $isDelivered = true;
+                    // Ensure status is set to 'delivered' if delivery_date exists
+                    if (!isset($scrapedData['status']) || $scrapedData['status'] !== Shipment::STATUS_DELIVERED) {
+                        $scrapedData['status'] = Shipment::STATUS_DELIVERED;
+                    }
+                }
+
+                // Determine internal status
+                $internalStatus = $shipment->internal_status;
+                if ($isDelivered) {
+                    $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                } elseif (!$internalStatus) {
+                    // If not delivered and no internal_status, set to en_transito
+                    $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
+                }
+                
                 // Check if status changed
-                if ($scrapedData['status'] !== $oldStatus) {
-                    // Determine internal status
-                    $internalStatus = $shipment->internal_status;
-                    
-                    // If status changed to delivered and no internal status, mark as recibido_ch
-                    if ($scrapedData['status'] === 'delivered' && !$internalStatus) {
-                        $internalStatus = 'recibido_ch';
-                    }
-                    
-                    // Update shipment
-                    $shipment->update([
-                        'status' => $scrapedData['status'],
-                        'internal_status' => $internalStatus,
-                        'wrh' => $scrapedData['wrh'] ?? $shipment->wrh,
-                        'weight' => $scrapedData['weight'] ?? $shipment->weight,
-                        'weight_unit' => $scrapedData['weight_unit'] ?? $shipment->weight_unit,
-                        'description' => $scrapedData['description'] ?? $shipment->description,
-                        'pickup_date' => $scrapedData['pickup_date'] ?? $shipment->pickup_date,
-                        'delivery_date' => $scrapedData['delivery_date'] ?? $shipment->delivery_date,
-                        'last_scan_date' => $scrapedData['last_scan_date'] ?? $shipment->last_scan_date,
-                        'last_scan_location' => $scrapedData['last_scan_location'] ?? $shipment->last_scan_location,
-                        'tracking_events' => $scrapedData['tracking_events'] ?? $shipment->tracking_events,
-                    ]);
-                    
+                $statusChanged = $scrapedData['status'] !== $oldStatus;
+                $internalStatusChanged = $internalStatus !== $shipment->internal_status;
+                
+                // Update shipment
+                $shipment->update([
+                    'status' => $scrapedData['status'],
+                    'internal_status' => $internalStatus,
+                    'wrh' => $scrapedData['wrh'] ?? $shipment->wrh,
+                    'weight' => $scrapedData['weight'] ?? $shipment->weight,
+                    'weight_unit' => $scrapedData['weight_unit'] ?? $shipment->weight_unit,
+                    'description' => $scrapedData['description'] ?? $shipment->description,
+                    'pickup_date' => $scrapedData['pickup_date'] ?? $shipment->pickup_date,
+                    'delivery_date' => $scrapedData['delivery_date'] ?? $shipment->delivery_date,
+                    'last_scan_date' => $scrapedData['last_scan_date'] ?? $shipment->last_scan_date,
+                    'last_scan_location' => $scrapedData['last_scan_location'] ?? $shipment->last_scan_location,
+                    'tracking_events' => $scrapedData['tracking_events'] ?? $shipment->tracking_events,
+                ]);
+                
+                if ($statusChanged || $internalStatusChanged) {
                     $updatedCount++;
-                    $this->info("Status updated: {$shipment->tracking_number} from '{$oldStatus}' to '{$scrapedData['status']}'");
-                    
-                    if ($internalStatus) {
-                        $this->info("  → Internal status set to: {$internalStatus}");
+                    if ($statusChanged) {
+                        $this->info("Status updated: {$shipment->tracking_number} from '{$oldStatus}' to '{$scrapedData['status']}'");
+                    }
+                    if ($internalStatusChanged) {
+                        $this->info("  → Internal status updated to: {$internalStatus}");
                     }
                     
-                    // Send notification to user
-                    if ($shipment->user) {
+                    // Send notification to user if status changed to delivered
+                    if ($statusChanged && $scrapedData['status'] === Shipment::STATUS_DELIVERED && $shipment->user) {
                         $shipment->user->notify(
                             new ShipmentStatusChanged($shipment, $oldStatus, $scrapedData['status'])
                         );
                         $notificationCount++;
                         $this->info("  → Notification sent to user: {$shipment->user->email}");
                     }
-                } else {
-                    // Update other fields even if status didn't change
-                    $shipment->update([
-                        'wrh' => $scrapedData['wrh'] ?? $shipment->wrh,
-                        'weight' => $scrapedData['weight'] ?? $shipment->weight,
-                        'weight_unit' => $scrapedData['weight_unit'] ?? $shipment->weight_unit,
-                        'description' => $scrapedData['description'] ?? $shipment->description,
-                        'last_scan_date' => $scrapedData['last_scan_date'] ?? $shipment->last_scan_date,
-                        'last_scan_location' => $scrapedData['last_scan_location'] ?? $shipment->last_scan_location,
-                        'tracking_events' => $scrapedData['tracking_events'] ?? $shipment->tracking_events,
-                    ]);
                 }
                 
                 // Add delay to avoid rate limiting

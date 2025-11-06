@@ -120,12 +120,17 @@ class DashboardController extends Controller
                 } elseif (isset($shipmentData['delivery_date']) && !empty($shipmentData['delivery_date'])) {
                     $isDelivered = true;
                     // Ensure status is set to 'delivered' if delivery_date exists
-                    $shipmentData['status'] = Shipment::STATUS_DELIVERED;
+                    if (!isset($shipmentData['status']) || $shipmentData['status'] !== Shipment::STATUS_DELIVERED) {
+                        $shipmentData['status'] = Shipment::STATUS_DELIVERED;
+                    }
                 }
                 
                 // Set internal_status based on delivery status
                 if ($isDelivered) {
                     $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
+                } else {
+                    // If not delivered, ensure it's in transit
+                    $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
                 }
 
                 // Check if shipment already exists
