@@ -40,6 +40,14 @@
         .btn-secondary { background: #666; color: white; }
         .btn-primary { background: #ff751f; color: white; }
         .btn-logout { background: #1262b4; color: white; }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
         .card {
             background: white;
             border-radius: 20px;
@@ -106,6 +114,75 @@
             text-decoration: none;
             display: inline-block;
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        .modal-header h2 {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        .form-group select:focus, .form-group input:focus {
+            outline: none;
+            border-color: #1262b4;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .actions-cell {
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -120,6 +197,20 @@
                 </form>
             </div>
         </div>
+
+        @if(session('success'))
+            <div class="alert alert-success">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="alert alert-error">
+                @foreach($errors->all() as $error)
+                    <div>{{ $error }}</div>
+                @endforeach
+            </div>
+        @endif
 
         <div class="card">
             <div class="tabs">
@@ -141,6 +232,7 @@
                                 <th>Peso (lb)</th>
                                 <th>Descripción</th>
                                 <th>Fecha Recibido</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -151,6 +243,15 @@
                                 <td>{{ $shipment->weight ?? 'N/A' }}</td>
                                 <td>{{ $shipment->description ?? 'N/A' }}</td>
                                 <td>{{ $shipment->created_at->format('d/m/Y') }}</td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-warning btn-small" onclick="openStatusModal({{ $shipment->id }}, '{{ $shipment->internal_status }}')">✏️ Cambiar Estado</button>
+                                    <form method="POST" action="{{ route('admin.shipment.delete', $shipment->id) }}" style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este paquete?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="redirect_to" value="{{ url()->current() }}">
+                                        <button type="submit" class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -174,6 +275,7 @@
                                 <th>Peso (lb)</th>
                                 <th>Estado</th>
                                 <th>Última Actualización</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -184,6 +286,15 @@
                                 <td>{{ $shipment->weight ?? 'N/A' }}</td>
                                 <td>{{ $shipment->status }}</td>
                                 <td>{{ $shipment->updated_at->format('d/m/Y H:i') }}</td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-warning btn-small" onclick="openStatusModal({{ $shipment->id }}, '{{ $shipment->internal_status }}')">✏️ Cambiar Estado</button>
+                                    <form method="POST" action="{{ route('admin.shipment.delete', $shipment->id) }}" style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este paquete?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="redirect_to" value="{{ url()->current() }}">
+                                        <button type="submit" class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -206,6 +317,7 @@
                                 <th>Peso (lb)</th>
                                 <th>Valor Factura</th>
                                 <th>Fecha Factura</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -216,6 +328,15 @@
                                 <td>{{ $shipment->weight ?? 'N/A' }}</td>
                                 <td>${{ number_format($shipment->invoice_value ?? 0, 2) }}</td>
                                 <td>{{ $shipment->invoiced_at ? $shipment->invoiced_at->format('d/m/Y') : 'N/A' }}</td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-warning btn-small" onclick="openStatusModal({{ $shipment->id }}, '{{ $shipment->internal_status }}')">✏️ Cambiar Estado</button>
+                                    <form method="POST" action="{{ route('admin.shipment.delete', $shipment->id) }}" style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este paquete?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="redirect_to" value="{{ url()->current() }}">
+                                        <button type="submit" class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -237,6 +358,7 @@
                                 <th>Cliente</th>
                                 <th>Peso (lb)</th>
                                 <th>Fecha Entrega</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -246,6 +368,15 @@
                                 <td>{{ $shipment->user->name ?? 'N/A' }}</td>
                                 <td>{{ $shipment->weight ?? 'N/A' }}</td>
                                 <td>{{ $shipment->delivery_date ? $shipment->delivery_date->format('d/m/Y') : 'N/A' }}</td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-warning btn-small" onclick="openStatusModal({{ $shipment->id }}, '{{ $shipment->internal_status }}')">✏️ Cambiar Estado</button>
+                                    <form method="POST" action="{{ route('admin.shipment.delete', $shipment->id) }}" style="display: inline;" onsubmit="return confirm('¿Estás seguro de eliminar este paquete?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <input type="hidden" name="redirect_to" value="{{ url()->current() }}">
+                                        <button type="submit" class="btn btn-danger btn-small">🗑️ Eliminar</button>
+                                    </form>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -256,6 +387,40 @@
                     </div>
                 @endif
             </div>
+        </div>
+    </div>
+
+    <!-- Modal para cambiar estado -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cambiar Estado del Paquete</h2>
+            </div>
+            <form id="statusForm" method="POST">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="redirect_to" value="{{ url()->current() }}">
+                
+                <div class="form-group">
+                    <label for="internal_status">Estado Interno</label>
+                    <select name="internal_status" id="internal_status" required>
+                        <option value="en_transito">En Tránsito</option>
+                        <option value="recibido_ch">Recibido CH</option>
+                        <option value="facturado">Facturado</option>
+                        <option value="entregado">Entregado</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="deliveryDateGroup" style="display: none;">
+                    <label for="delivery_date">Fecha de Entrega (opcional)</label>
+                    <input type="date" name="delivery_date" id="delivery_date">
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeStatusModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -272,6 +437,46 @@
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+        }
+
+        function openStatusModal(shipmentId, currentStatus) {
+            const modal = document.getElementById('statusModal');
+            const form = document.getElementById('statusForm');
+            const statusSelect = document.getElementById('internal_status');
+            const deliveryDateGroup = document.getElementById('deliveryDateGroup');
+
+            // Set form action
+            form.action = '/admin/shipment/' + shipmentId + '/status';
+
+            // Set current status
+            statusSelect.value = currentStatus;
+
+            // Show/hide delivery date field based on status
+            function toggleDeliveryDate() {
+                if (statusSelect.value === 'recibido_ch' || statusSelect.value === 'entregado') {
+                    deliveryDateGroup.style.display = 'block';
+                } else {
+                    deliveryDateGroup.style.display = 'none';
+                }
+            }
+
+            statusSelect.addEventListener('change', toggleDeliveryDate);
+            toggleDeliveryDate();
+
+            // Show modal
+            modal.style.display = 'block';
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('statusModal');
+            if (event.target == modal) {
+                closeStatusModal();
+            }
         }
     </script>
 </body>

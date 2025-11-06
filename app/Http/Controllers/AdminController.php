@@ -356,4 +356,87 @@ class AdminController extends Controller
             ->with('success', 'Contraseña restablecida. Nueva contraseña: ' . $newPassword)
             ->with('password', $newPassword);
     }
+
+    /**
+     * Update shipment status
+     */
+    public function updateShipmentStatus(Request $request, $id): RedirectResponse
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'internal_status' => 'required|string|in:en_transito,recibido_ch,facturado,entregado',
+            'delivery_date' => 'nullable|date',
+        ]);
+
+        $shipment = Shipment::findOrFail($id);
+
+        try {
+            $updateData = [
+                'internal_status' => $request->internal_status,
+            ];
+
+            // If changing to delivered, update status and delivery_date
+            if ($request->internal_status === Shipment::INTERNAL_STATUS_ENTREGADO || 
+                $request->internal_status === Shipment::INTERNAL_STATUS_RECIBIDO_CH) {
+                $updateData['status'] = Shipment::STATUS_DELIVERED;
+                
+                // Set delivery_date if provided or if not set
+                if ($request->delivery_date) {
+                    $updateData['delivery_date'] = $request->delivery_date;
+                } elseif (!$shipment->delivery_date) {
+                    $updateData['delivery_date'] = now();
+                }
+            } elseif ($request->internal_status === Shipment::INTERNAL_STATUS_EN_TRANSITO) {
+                // If changing to in_transit, ensure status is not delivered
+                if ($shipment->status === Shipment::STATUS_DELIVERED) {
+                    $updateData['status'] = Shipment::STATUS_IN_TRANSIT;
+                    $updateData['delivery_date'] = null;
+                }
+            }
+
+            $shipment->update($updateData);
+
+            $redirectUrl = $request->input('redirect_to', route('admin.inventory'));
+            
+            return redirect($redirectUrl)->with('success', 'Estado del paquete actualizado exitosamente.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error updating shipment status: ' . $e->getMessage(), [
+                'shipment_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return back()->withErrors(['error' => 'Error al actualizar el estado del paquete: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete shipment
+     */
+    public function deleteShipment(Request $request, $id): RedirectResponse
+    {
+        if (!Auth::check() || !Auth::user()->isAdmin()) {
+            abort(403);
+        }
+
+        $shipment = Shipment::findOrFail($id);
+        $trackingNumber = $shipment->tracking_number;
+        
+        try {
+            $shipment->delete();
+            
+            $redirectUrl = $request->input('redirect_to', route('admin.inventory'));
+            
+            return redirect($redirectUrl)->with('success', "Paquete {$trackingNumber} eliminado exitosamente.");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error deleting shipment: ' . $e->getMessage(), [
+                'shipment_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return back()->withErrors(['error' => 'Error al eliminar el paquete: ' . $e->getMessage()]);
+        }
+    }
 }

@@ -54,6 +54,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/client/{id}/assign', [AdminController::class, 'assignPackage'])->name('client.assign');
     Route::post('/client/{id}/assign', [AdminController::class, 'assignPackagePost'])->name('client.assign.post');
     Route::post('/client/{id}/reset-password', [AdminController::class, 'resetClientPassword'])->name('client.reset-password');
+    Route::put('/shipment/{id}/status', [AdminController::class, 'updateShipmentStatus'])->name('shipment.update-status');
+    Route::delete('/shipment/{id}', [AdminController::class, 'deleteShipment'])->name('shipment.delete');
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory');
     Route::get('/inventory/report/received-ch', [InventoryController::class, 'downloadReceivedCHReport'])->name('inventory.report.received-ch');
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices');
