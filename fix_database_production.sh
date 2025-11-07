@@ -33,3 +33,4 @@ php artisan cache:clear
 echo ""
 echo "✅ Proceso completado. Intenta iniciar sesión ahora."
 
+

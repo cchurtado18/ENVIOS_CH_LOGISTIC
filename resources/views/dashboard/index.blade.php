@@ -45,6 +45,15 @@
             gap: 20px;
         }
         
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-actions a {
+            text-decoration: none;
+        }
+        
         .user-info {
             text-align: right;
         }
@@ -400,22 +409,131 @@
         }
         
         @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
+            body {
+                padding: 15px;
             }
-            
+
+            .container {
+                width: 100%;
+            }
+
             .header {
                 flex-direction: column;
-                gap: 20px;
+                align-items: flex-start;
+                gap: 16px;
+                padding: 20px;
             }
-            
+
+            .header h1 {
+                font-size: 24px;
+            }
+
             .header-info {
                 width: 100%;
-                justify-content: space-between;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
             }
-            
+
+            .user-info {
+                text-align: left;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .header-actions a,
+            .header-actions .logout-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .tab {
+                flex: 1 1 calc(50% - 8px);
+                font-size: 14px;
+            }
+
+            .search-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box,
+            .filter-select,
+            .clear-filters-btn {
+                width: 100%;
+            }
+
+            .shipments-list {
+                max-height: none;
+            }
+
+            .shipment-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
             .shipment-details {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+
+            .header {
+                padding: 18px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .card h2 {
+                font-size: 20px;
+            }
+
+            .tab {
+                flex: 1 1 100%;
+                font-size: 13px;
+                padding: 10px 14px;
+            }
+
+            .tracking-number {
+                font-size: 16px;
+            }
+
+            .status-badge {
+                font-size: 11px;
+                padding: 4px 10px;
+            }
+
+            .shipment-item {
+                padding: 16px;
+            }
+
+            button,
+            .logout-btn {
+                font-size: 15px;
             }
         }
     </style>
@@ -429,7 +547,7 @@
                     <div class="user-name">{{ $user['name'] ?? 'Usuario' }}</div>
                     <div class="user-email">{{ $user['email'] ?? '' }}</div>
                 </div>
-                <div style="display: flex; gap: 10px;">
+                <div class="header-actions">
                     @if(isset($user['role']) && $user['role'] === 'admin')
                         <a href="{{ route('admin.index') }}" style="padding: 10px 20px; background: #ff751f; color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform 0.2s ease; text-decoration: none; display: inline-block;">🔐 Admin</a>
                     @endif
