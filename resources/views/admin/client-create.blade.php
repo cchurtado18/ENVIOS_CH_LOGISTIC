@@ -8,11 +8,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 800px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header {
             background: white;
             border-radius: 20px;
@@ -38,6 +38,8 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
         }
         .form-row {
             display: grid;
@@ -91,6 +93,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         <div class="header">
             <h1>Crear Cliente</h1>

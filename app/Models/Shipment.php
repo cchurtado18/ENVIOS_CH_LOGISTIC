@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class Shipment extends Model
 {
@@ -173,6 +174,105 @@ class Shipment extends Model
     public function scopeWithException(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_EXCEPTION);
+    }
+
+    /**
+     * Determine internal status from scraped data.
+     * Mutates the provided data to ensure status consistency.
+     */
+    public static function determineInternalStatusFromData(array &$shipmentData): string
+    {
+        $isDelivered = self::detectDeliveredStatus($shipmentData);
+
+        if ($isDelivered) {
+            $shipmentData['status'] = self::STATUS_DELIVERED;
+
+            return self::INTERNAL_STATUS_RECIBIDO_CH;
+        }
+
+        return self::INTERNAL_STATUS_EN_TRANSITO;
+    }
+
+    /**
+     * Detect if scraped data indicates a delivered shipment.
+     */
+    protected static function detectDeliveredStatus(array $shipmentData): bool
+    {
+        if (!empty($shipmentData['delivery_date'])) {
+            return true;
+        }
+
+        $metadata = [];
+        if (isset($shipmentData['metadata'])) {
+            $metadata = is_array($shipmentData['metadata'])
+                ? $shipmentData['metadata']
+                : json_decode((string) $shipmentData['metadata'], true) ?? [];
+        }
+
+        $fieldsToInspect = [
+            $shipmentData['status'] ?? null,
+            $shipmentData['status_text'] ?? null,
+            $shipmentData['status_description'] ?? null,
+            $shipmentData['last_scan_location'] ?? null,
+            $shipmentData['last_scan_description'] ?? null,
+            $shipmentData['latest_event'] ?? null,
+            $shipmentData['latest_event_description'] ?? null,
+            $metadata['latest_event'] ?? null,
+            $metadata['latest_event_description'] ?? null,
+        ];
+
+        if (!empty($shipmentData['tracking_events']) && is_array($shipmentData['tracking_events'])) {
+            $trackingEvents = $shipmentData['tracking_events'];
+            $firstEvent = $trackingEvents[0] ?? reset($trackingEvents);
+            $lastEvent = end($trackingEvents);
+            foreach ([$firstEvent, $lastEvent] as $event) {
+                if (is_array($event)) {
+                    $fieldsToInspect[] = $event['status'] ?? null;
+                    $fieldsToInspect[] = $event['description'] ?? null;
+                }
+            }
+            reset($trackingEvents);
+        }
+
+        $deliveredKeywords = [
+            'delivered',
+            'entregado',
+            'entregada',
+            'entregados',
+            'entregadas',
+            'entregado a',
+            'entregado en',
+            'entrega exitosa',
+            'received at office',
+            'recibido en oficina',
+            'recibido en oficina de metrocentro',
+            'recibido en oficina metrocentro',
+            'recibido en metrocentro',
+            'recibido en destino',
+            'disponible para retiro',
+            'available for pickup',
+            'ready for pickup',
+            'en oficina',
+            'en destino',
+            'oficina metrocentro',
+            'entregado cliente',
+        ];
+
+        foreach ($fieldsToInspect as $field) {
+            if (!$field) {
+                continue;
+            }
+
+            $normalized = Str::lower(trim((string) $field));
+
+            foreach ($deliveredKeywords as $keyword) {
+                if (Str::contains($normalized, $keyword)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -1,0 +1,26 @@
+# COMANDOS FINALES PARA EL SERVIDOR (después de copiar archivos)
+
+# 1. Instalar dependencias
+composer install --no-dev --optimize-autoloader
+
+# 2. Configurar .env (si no existe)
+cp .env.example .env
+php artisan key:generate
+
+# 3. Ejecutar migraciones
+php artisan migrate --force
+
+# 4. Limpiar cachés
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan cache:clear
+
+# 5. Asegurar permisos
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+
+# 6. Reiniciar servicios
+sudo systemctl restart php8.2-fpm
+sudo systemctl restart nginx
+

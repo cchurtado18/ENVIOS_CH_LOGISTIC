@@ -8,7 +8,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
@@ -186,6 +186,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         <div class="header">
             <h1>📦 Inventario</h1>

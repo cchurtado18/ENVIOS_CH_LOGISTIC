@@ -8,11 +8,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header {
             background: white;
             border-radius: 20px;
@@ -187,6 +187,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         @if (session('success'))
             <div class="success-message">

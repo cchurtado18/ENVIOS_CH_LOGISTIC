@@ -8,11 +8,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 800px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header {
             background: white;
             border-radius: 20px;
@@ -39,6 +39,9 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 40px;
             margin-bottom: 20px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
         }
         .card h2 {
             color: #333;
@@ -106,6 +109,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         @if (session('success'))
             <div class="success-message">

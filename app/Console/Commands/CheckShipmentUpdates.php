@@ -59,26 +59,14 @@ class CheckShipmentUpdates extends Command
                     continue;
                 }
                 
-                // Determine internal_status based on delivery status
-                // Check if delivered (status or delivery_date)
-                $isDelivered = false;
-                if (isset($scrapedData['status']) && $scrapedData['status'] === Shipment::STATUS_DELIVERED) {
-                    $isDelivered = true;
-                } elseif (isset($scrapedData['delivery_date']) && !empty($scrapedData['delivery_date'])) {
-                    $isDelivered = true;
-                    // Ensure status is set to 'delivered' if delivery_date exists
-                    if (!isset($scrapedData['status']) || $scrapedData['status'] !== Shipment::STATUS_DELIVERED) {
-                        $scrapedData['status'] = Shipment::STATUS_DELIVERED;
-                    }
-                }
-
-                // Determine internal status
+                // Determine internal status using centralized logic
+                $computedInternalStatus = Shipment::determineInternalStatusFromData($scrapedData);
                 $internalStatus = $shipment->internal_status;
-                if ($isDelivered) {
+
+                if ($computedInternalStatus === Shipment::INTERNAL_STATUS_RECIBIDO_CH) {
                     $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
-                } elseif (!$internalStatus) {
-                    // If not delivered and no internal_status, set to en_transito
-                    $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
+                } elseif (!$internalStatus || $internalStatus === Shipment::INTERNAL_STATUS_EN_TRANSITO) {
+                    $internalStatus = $computedInternalStatus;
                 }
                 
                 // Check if status changed

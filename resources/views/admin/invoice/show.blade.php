@@ -13,13 +13,13 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
         
         .container {
-            max-width: 1100px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -263,6 +263,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         @if (session('success'))
             <div class="success-message">

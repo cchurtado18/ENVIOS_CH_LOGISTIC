@@ -375,11 +375,14 @@ class EverestScrapingService
                 ]);
             }
             
+            $internalStatus = Shipment::determineInternalStatusFromData($shipmentData);
+
             Shipment::updateOrCreate(
                 ['tracking_number' => $shipmentData['tracking_number']],
                 array_merge($shipmentData, [
                     'warehouse_id' => $warehouse->id,
-                    'metadata' => json_encode($shipmentData),
+                    'internal_status' => $internalStatus,
+                    'metadata' => $shipmentData,
                 ])
             );
         }

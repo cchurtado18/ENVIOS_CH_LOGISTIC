@@ -9,12 +9,12 @@ use App\Models\PendingTracking;
 use App\Services\EverestScrapingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use App\Notifications\ClientPasswordReset;
-
 class AdminController extends Controller
 {
     protected $scrapingService;
@@ -27,22 +27,100 @@ class AdminController extends Controller
     /**
      * Show admin dashboard
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         if (!Auth::check() || !Auth::user()->isAdmin()) {
             abort(403);
         }
 
+        $range = $request->input('range', '30_days');
+        $statusFilter = $request->input('status', 'all');
+
+        $now = now();
+        $rangeStart = match ($range) {
+            '7_days' => $now->copy()->subDays(7),
+            '30_days' => $now->copy()->subDays(30),
+            '90_days' => $now->copy()->subDays(90),
+            'this_month' => $now->copy()->startOfMonth(),
+            'all_time' => null,
+            default => $now->copy()->subDays(30),
+        };
+
+        $totalClients = User::where('role', 'client')->count();
+
+        $shipmentsBase = Shipment::query();
+        if ($rangeStart) {
+            $shipmentsBase->where('created_at', '>=', $rangeStart);
+        }
+
+        $filteredShipmentsQuery = clone $shipmentsBase;
+        if ($statusFilter !== 'all') {
+            $filteredShipmentsQuery->where('internal_status', $statusFilter);
+        }
+
+        $statusCounts = (clone $shipmentsBase)
+            ->select('internal_status', DB::raw('COUNT(*) as total'))
+            ->groupBy('internal_status')
+            ->pluck('total', 'internal_status')
+            ->toArray();
+
+        $totalRevenue = (float) Invoice::sum('total_amount');
+        $revenueToday = (float) Invoice::whereBetween(
+            'created_at',
+            [$now->copy()->startOfDay(), $now->copy()->endOfDay()]
+        )->sum('total_amount');
+        $invoicesCount = (int) Invoice::count();
+
+        $recentShipments = (clone $filteredShipmentsQuery)
+            ->with('user:id,name')
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get([
+                'id',
+                'tracking_number',
+                'status',
+                'internal_status',
+                'user_id',
+                'created_at',
+                'delivery_date',
+                'invoice_id',
+            ]);
+
         $stats = [
-            'total_clients' => User::where('role', 'client')->count(),
-            'total_shipments' => Shipment::count(),
-            'total_invoices' => Invoice::count(),
-            'total_revenue' => Invoice::sum('total_amount'),
+            'clients' => $totalClients,
+            'in_transit' => $statusCounts[Shipment::INTERNAL_STATUS_EN_TRANSITO] ?? 0,
+            'received_ch' => $statusCounts[Shipment::INTERNAL_STATUS_RECIBIDO_CH] ?? 0,
+            'facturado' => $statusCounts[Shipment::INTERNAL_STATUS_FACTURADO] ?? 0,
+            'delivered' => $statusCounts[Shipment::INTERNAL_STATUS_ENTREGADO] ?? 0,
+            'revenue_total' => $totalRevenue,
+            'revenue_today' => $revenueToday,
+            'invoices_count' => $invoicesCount,
+        ];
+
+        $rangeOptions = [
+            '7_days' => 'Últimos 7 días',
+            '30_days' => 'Últimos 30 días',
+            '90_days' => 'Últimos 90 días',
+            'this_month' => 'Este mes',
+            'all_time' => 'Todo el historial',
+        ];
+
+        $statusOptions = [
+            'all' => 'Todos los estados',
+            Shipment::INTERNAL_STATUS_EN_TRANSITO => 'En tránsito',
+            Shipment::INTERNAL_STATUS_RECIBIDO_CH => 'Recibido CH',
+            Shipment::INTERNAL_STATUS_FACTURADO => 'Facturado',
+            Shipment::INTERNAL_STATUS_ENTREGADO => 'Entregado',
         ];
 
         return view('admin.index', [
             'stats' => $stats,
-            'user' => Auth::user()->only('id', 'name', 'email', 'role')
+            'recentShipments' => $recentShipments,
+            'range' => $range,
+            'statusFilter' => $statusFilter,
+            'rangeOptions' => $rangeOptions,
+            'statusOptions' => $statusOptions,
+            'user' => Auth::user()->only('id', 'name', 'email', 'role'),
         ]);
     }
 
@@ -276,25 +354,21 @@ class AdminController extends Controller
                 ]);
             }
 
-            // Determine internal_status based on delivery status
-            $internalStatus = Shipment::INTERNAL_STATUS_EN_TRANSITO;
-            $isDelivered = false;
-            
-            if (isset($shipmentData['status']) && $shipmentData['status'] === Shipment::STATUS_DELIVERED) {
-                $isDelivered = true;
-                $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
-            } elseif (isset($shipmentData['delivery_date']) && !empty($shipmentData['delivery_date'])) {
-                $isDelivered = true;
-                $internalStatus = Shipment::INTERNAL_STATUS_RECIBIDO_CH;
-                if (!isset($shipmentData['status']) || $shipmentData['status'] !== Shipment::STATUS_DELIVERED) {
-                    $shipmentData['status'] = Shipment::STATUS_DELIVERED;
-                }
-            }
-
             // Check if shipment already exists
             $existingShipment = Shipment::where('tracking_number', $request->tracking_number)->first();
 
+            if ($existingShipment) {
+                if ($existingShipment->user_id === $client->id) {
+                    return back()->withErrors(['tracking_number' => 'Este tracking ya está asignado a este cliente.']);
+                }
+
+                if ($existingShipment->user_id && $existingShipment->user_id !== $client->id) {
+                    return back()->withErrors(['tracking_number' => 'Este tracking ya está asignado a otro cliente.']);
+                }
+            }
+
             // Prepare data for shipment
+            $internalStatus = Shipment::determineInternalStatusFromData($shipmentData);
             $shipmentUpdateData = array_merge($shipmentData, [
                 'warehouse_id' => $warehouse->id,
                 'internal_status' => $internalStatus,

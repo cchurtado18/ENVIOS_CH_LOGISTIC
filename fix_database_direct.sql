@@ -17,3 +17,5 @@ ADD COLUMN IF NOT EXISTS user_id BIGINT UNSIGNED NULL AFTER warehouse_id;
 CREATE INDEX IF NOT EXISTS shipments_user_id_index ON shipments(user_id);
 
 
+
+

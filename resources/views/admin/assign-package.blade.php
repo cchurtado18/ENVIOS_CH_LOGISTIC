@@ -13,13 +13,13 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #1262b4;
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
         
         .container {
-            max-width: 700px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -62,6 +62,8 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             padding: 30px;
+            max-width: 900px;
+            margin: 0 auto;
         }
         
         .card h2 {
@@ -143,6 +145,8 @@
     </style>
 </head>
 <body>
+    @include('admin.partials.nav')
+
     <div class="container">
         <div class="header">
             <h1>➕ Asignar Paquete</h1>

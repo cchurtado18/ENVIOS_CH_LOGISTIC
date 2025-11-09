@@ -219,3 +219,5 @@ Cada evento en el array tiene la siguiente estructura:
    - Si un evento contiene "Recibido en oficina Metrocentro" o "received in metrocentro office", se traduce automáticamente a "En almacén fiscal de Nicaragua" en la vista web, pero en la API aparece el texto original
    - Si un evento contiene "Delivered" o "Entregado", se traduce a "En oficina" en la vista web, pero en la API aparece el texto original
 
+
+
