@@ -44,22 +44,6 @@
             font-size: 16px;
         }
         
-        .public-link {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .public-link a {
-            color: #1262b4;
-            text-decoration: none;
-            font-weight: 600;
-            word-break: break-all;
-        }
-
-        .public-link a:hover {
-            text-decoration: underline;
-        }
         
         .form-row {
             display: grid;
@@ -196,11 +180,6 @@
     <div class="container">
         <h1>Crear Cuenta</h1>
         <p class="subtitle">Regístrate en Envios CH Logistic</p>
-
-        <div class="public-link">
-            <span>Enlace directo: </span>
-            <a href="http://161.35.143.171/register" target="_blank" rel="noopener">http://161.35.143.171/register</a>
-        </div>
         
         <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: #e8f4fd; border-radius: 10px; border: 2px solid #1262b4;">
             <p style="color: #333; margin-bottom: 10px; font-weight: 600;">¿Solo quieres rastrear un paquete?</p>
